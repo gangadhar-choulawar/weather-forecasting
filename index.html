@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>5-Day Weather Forecast</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <h1>Weather Forecast</h1>
+    
+    <label for="cityInput">Enter City: </label>
+    <input type="text" id="cityInput" placeholder="Enter city name">
+    <button onclick="getWeather()">Get Weather</button>
+    
+    <div id="weatherInfo"></div>
+    <h2>5-Day Temperature Forecast</h2>
+    <canvas id="weatherChart"></canvas>
+
+    <script>
+        async function getWeather() {
+            const apiKey = 'd073796cc2255e3d2582e5b474c53ee3'; // Use your API Key
+            const city = document.getElementById('cityInput').value;
+            const weatherUrl = `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`;
+            const forecastUrl = `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric`;
+
+            try {
+                const [weatherResponse, forecastResponse] = await Promise.all([
+                    fetch(weatherUrl),
+                    fetch(forecastUrl)
+                ]);
+
+                const weatherData = await weatherResponse.json();
+                const forecastData = await forecastResponse.json();
+
+                if (weatherData.cod !== 200 || forecastData.cod !== "200") {
+                    document.getElementById('weatherInfo').innerHTML = `<p style="color:red;">City not found!</p>`;
+                    return;
+                }
+
+                // Extract sunrise & sunset
+                const sunrise = new Date(weatherData.sys.sunrise * 1000).toLocaleTimeString();
+                const sunset = new Date(weatherData.sys.sunset * 1000).toLocaleTimeString();
+
+                document.getElementById('weatherInfo').innerHTML = `
+                    <h2>Current Weather in ${weatherData.name}</h2>
+                    <p>Temperature: ${weatherData.main.temp}°C</p>
+                    <p>Humidity: ${weatherData.main.humidity}%</p>
+                    <p>Pressure: ${weatherData.main.pressure} hPa</p>
+                    <p>Condition: ${weatherData.weather[0].description}</p>
+                    <p>Sunrise: ${sunrise}</p>
+                    <p>Sunset: ${sunset}</p>
+                `;
+
+                // Extract temperature for next 5 days
+                let dates = [];
+                let temps = [];
+                for (let i = 0; i < forecastData.list.length; i += 8) { // Data every 3 hours, 8 entries per day
+                    let date = new Date(forecastData.list[i].dt * 1000).toLocaleDateString();
+                    dates.push(date);
+                    temps.push(forecastData.list[i].main.temp);
+                }
+
+                updateChart(dates, temps);
+
+            } catch (error) {
+                console.error("Error fetching data:", error);
+            }
+        }
+
+        function updateChart(labels, data) {
+            const ctx = document.getElementById('weatherChart').getContext('2d');
+            if (window.weatherChart) {
+                window.weatherChart.destroy();
+            }
+            window.weatherChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Temperature (°C)',
+                        data: data,
+                        borderColor: 'blue',
+                        backgroundColor: 'lightblue',
+                        fill: true
+                    }]
+                }
+            });
+        }
+    </script>
+</body>
+</html>
+
